@@ -923,7 +923,7 @@ class ProxmoxKvmAnsible(ProxmoxAnsible):
             time.sleep(1)
         return False
 
-    def create_vm(self, vmid, newid, node, name, memory, cpu, cores, sockets, update, **kwargs):
+    def create_vm(self, vmid, newid, node, name, memory, cpu, cores, sockets, update, timeout, **kwargs):
         # Available only in PVE 4
         only_v4 = ['force', 'protection', 'skiplock']
         only_v6 = ['ciuser', 'cipassword', 'sshkeys', 'ipconfig', 'tags']
@@ -1069,9 +1069,9 @@ class ProxmoxKvmAnsible(ProxmoxAnsible):
                 if self.module.params[param] is not None:
                     clone_params[param] = self.module.params[param]
             clone_params.update(dict([k, int(v)] for k, v in clone_params.items() if isinstance(v, bool)))
-            taskid = proxmox_node.qemu(vmid).clone.post(newid=newid, name=name, **clone_params)
+            taskid = proxmox_node.qemu(vmid).clone.post(newid=newid, name=name, timeout=timeout, **clone_params)
         else:
-            taskid = proxmox_node.qemu.create(vmid=vmid, name=name, memory=memory, cpu=cpu, cores=cores, sockets=sockets, **kwargs)
+            taskid = proxmox_node.qemu.create(vmid=vmid, name=name, memory=memory, cpu=cpu, cores=cores, sockets=sockets, timeout=timeout, **kwargs)
 
         if not self.wait_for_task(node, taskid):
             self.module.fail_json(msg='Reached timeout while waiting for creating VM. Last line in task before timeout: %s' %
@@ -1079,10 +1079,10 @@ class ProxmoxKvmAnsible(ProxmoxAnsible):
             return False
         return True
 
-    def start_vm(self, vm):
+    def start_vm(self, vm, timeout):
         vmid = vm['vmid']
         proxmox_node = self.proxmox_api.nodes(vm['node'])
-        taskid = proxmox_node.qemu(vmid).status.start.post()
+        taskid = proxmox_node.qemu(vmid).status.start.post(timeout=timeout)
         if not self.wait_for_task(vm['node'], taskid):
             self.module.fail_json(msg='Reached timeout while waiting for starting VM. Last line in task before timeout: %s' %
                                   proxmox_node.tasks(taskid).log.get()[:1])
